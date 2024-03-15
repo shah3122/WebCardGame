@@ -2,23 +2,28 @@ using System;
 using UnityEngine;
 using System.Collections.Generic;
 
-[System.Serializable]
 public class Player
 {
     public List<Card> deck = new List<Card>();
     public int level1Score;
-
+    public int ID;
     public void InitializeDeck()
     {
         deck.AddRange(CreateRandomCards());
     }
 
-    public void DrawCard(List<Card> deck)
+    public Card DrawCard(List<Card> deck)
     {
+        if(deck.Count <= 0)
+        {
+            return null;
+        }
         int index = UnityEngine.Random.Range(0, deck.Count);
         Card drawnCard = deck[index];
         deck.RemoveAt(index);
         this.deck.Add(drawnCard);
+        return drawnCard;
+        
     }
 
     public void CalculateLevel1Score()
@@ -81,7 +86,7 @@ public class Player
         for (int i = 0; i < numCards; i++)
         {
             string randomSuit = suits[UnityEngine.Random.Range(0, suits.Length)];
-            int randomValue = UnityEngine.Random.Range(2, 15);
+            int randomValue = UnityEngine.Random.Range(2, 11);
             randomCards.Add(new Card(randomValue, randomSuit));
             Debug.Log("Random Card : " + randomValue + " "+ randomSuit);
         }
@@ -90,8 +95,6 @@ public class Player
 
     }
 }
-
-[System.Serializable]
 public class Card
 {
     public int value;
