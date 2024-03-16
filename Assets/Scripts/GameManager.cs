@@ -2,7 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
-
+using TMPro;
 public class GameManager : MonoBehaviour
 {
     public GameObject cardPopupPrefab;
@@ -11,13 +11,14 @@ public class GameManager : MonoBehaviour
     public GameObject dealer;
     public GameObject cardPrefab;
     public GameObject levelComplete;
+    public GameObject scorePrefab;
+    public GameObject cardHolder1;
+    public GameObject cardHolder2;
+    public GameObject cardHolder3;
 
     public Transform[] spawnPoints;
     public Transform canvas;
-
-    public Text player1Score;
-    public Text player2Score;
-    public Text player3Score;
+    public Transform scoresParent;
 
     public float initialPopupDurationLevel1 = 10f; 
     public float subsequentPopupDurationLevel1 = 5f; 
@@ -30,6 +31,7 @@ public class GameManager : MonoBehaviour
     private List<Player> players = new List<Player>();
     private List<Card> level1Deck = new List<Card>();
     private List<Card> level2Deck = new List<Card>();
+    private List<PlayerProperties> playerPropertues = new List<PlayerProperties>();
 
     public bool isSinglePlayer;
     
@@ -47,12 +49,16 @@ public class GameManager : MonoBehaviour
                 {
                     GameObject player = Instantiate(playerPrefab, spawnPoints[i].position,Quaternion.identity, canvas.transform);
                     player.GetComponent<PlayerProperties>().SetUp(players[i]);
+                    player.transform.SetSiblingIndex(1);
+                    player.name = "Player";
                 }
                 else
                 {
                     GameObject bot = Instantiate(botPrefab, spawnPoints[i].position, Quaternion.identity, canvas.transform);
                     bot.GetComponent<PlayerProperties>().SetUp(players[i]);
                     bot.GetComponentInChildren<Text>().text = "Bot:" + i;
+                    bot.transform.SetSiblingIndex(1);
+                    bot.name = "Bot : " + i;
                 }
             }            
         }      
@@ -62,10 +68,11 @@ public class GameManager : MonoBehaviour
     }
 
     IEnumerator Level1GameLoop()
-    {        
+    {
         while (level1Deck.Count > 0)
         {
             int i = 0;
+
             foreach (Player player in players)
             {
                 Card card = player.DrawCard(level1Deck);
@@ -73,17 +80,29 @@ public class GameManager : MonoBehaviour
                 string cardSpritePath = $"Cards/Level1/{suitFolderName}/{card.value}"; 
                 Debug.Log("Cards : " + cardSpritePath);
                 Sprite cardImage = (Resources.Load<Sprite>(cardSpritePath));
-                GameObject cardObject = Instantiate(cardPrefab, dealer.transform.position,Quaternion.identity,canvas);
+                GameObject cardObject = null;
+                if (i == 0)
+                {
+                    cardObject = Instantiate(cardPrefab, dealer.transform.position, Quaternion.identity, cardHolder1.transform);
+                    StartCoroutine(MoveCardToPlayer(cardObject, cardHolder1.transform.position));
+                }   
+                if (i == 1)
+                {
+                    cardObject = Instantiate(cardPrefab, dealer.transform.position, Quaternion.identity, cardHolder2.transform);
+                    StartCoroutine(MoveCardToPlayer(cardObject, cardHolder2.transform.position));
+                }
+                if (i == 2)
+                {
+                    cardObject = Instantiate(cardPrefab, dealer.transform.position, Quaternion.identity, cardHolder3.transform);
+                    StartCoroutine(MoveCardToPlayer(cardObject, cardHolder3.transform.position));
+                }
                 cardObject.name = card.suit + ":" + card.value;
-                cardObject.transform.parent = canvas.transform;
                 cardObject.GetComponent<CardProperties>().SetUp(card);
-                cardObject.AddComponent<Image>();
                 cardObject.GetComponent<Image>().sprite = cardImage;                
                 StartCoroutine(MoveCardToPlayer(cardObject, spawnPoints[i].transform.position));
                 yield return new WaitForSeconds(0.25f);
                 i++;
             }
-            //ShowCardPopup(initialPopupDurationLevel1);
             yield return new WaitForSeconds(1f);
             //initialPopupDurationLevel1 = subsequentPopupDurationLevel1;
         }
@@ -116,14 +135,14 @@ public class GameManager : MonoBehaviour
             float fracJourney = distCovered / journeyLength;
 
             // Move the card using Lerp
-            cardObject.transform.position = Vector3.Lerp(initialPosition, targetPosition, fracJourney);
+            cardObject.transform.position = Vector3.Lerp(initialPosition, new Vector3(targetPosition.x, targetPosition.y-23f, targetPosition.z), fracJourney);
 
             // Wait for the next frame
             yield return null;
         }
 
         // Ensure the card reaches the player's position
-        cardObject.transform.position = targetPosition;
+        cardObject.transform.position = new Vector3(targetPosition.x, targetPosition.y - 23f, targetPosition.z);
 
         // Add the card to the player's hand
         //drawnCard.GetPlayer().AddCard(cardObject.GetComponent<Card>());
@@ -228,13 +247,56 @@ public class GameManager : MonoBehaviour
 
     void CalculateLevel1Scores()
     {
-        
+        levelComplete.SetActive(true);
+
         foreach (Player player in players)
         {
             player.CalculateLevel1Score();
+            PlayerProperties playerNew = FindPlayerbyID(player);
+            playerNew.SetUp(player);
+            GameObject score = Instantiate(scorePrefab, scoresParent);
+            score.GetComponent<ScorePrefab>().SetUpScorePrefab(playerNew.name, playerNew.level1Score);
         }
+        PlayerProperties winner = Findwinner();
+        levelComplete.transform.GetChild(0).GetChild(2).GetComponent<TextMeshProUGUI>().text = "Winner is " + winner.name + " with score of " + winner.level1Score;
     }
 
+    public PlayerProperties FindPlayerbyID(Player player)
+    {
+        PlayerProperties[] playerP = FindObjectsOfType<PlayerProperties>();
+        foreach(PlayerProperties players in playerP)
+        {
+            if(players.ID == player.ID)
+            {
+                return players;
+            }
+        }
+        return null;
+    }
+
+    public PlayerProperties Findwinner()
+    {
+
+        PlayerProperties[] playerP = FindObjectsOfType<PlayerProperties>();
+        PlayerProperties winner;
+        int largest = playerP[0].level1Score; // Assume 'a' is the largest initially
+        winner = playerP[0];
+        // Compare 'b' with current largest
+        if (playerP[1].level1Score > largest)
+        {
+            largest = playerP[1].level1Score; // Update largest if 'b' is greater
+            winner = playerP[1];
+        }
+
+        // Compare 'c' with current largest
+        if (playerP[2].level1Score > largest)
+        {
+            largest = playerP[2].level1Score; // Update largest if 'c' is greater
+            winner = playerP[2];
+        }
+
+        return winner;
+    }
     void TransitionToLevel2()
     {        
         foreach (Player player in players)

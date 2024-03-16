@@ -32,6 +32,7 @@ public class Player
         {
             level1Score += card.value;
         }
+
         Debug.Log("\n Player : " + level1Score);
     }
 
